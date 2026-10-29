@@ -19,8 +19,8 @@ large orchestration framework.
 | HTTP API | FastAPI + Uvicorn | Async-native, typed request validation, automatic OpenAPI documentation, and production adoption. |
 | Data validation | Pydantic (via FastAPI) | Defines clear task, agent, and result contracts. |
 | HTTP client | `httpx` | Async client with connection pooling and timeout controls. |
-| LLM provider | OpenAI Python SDK behind a small adapter | Supports real model calls while keeping the orchestrator testable and provider-replaceable. |
-| Configuration | `pydantic-settings` | Typed environment-based configuration; secrets remain outside source control. |
+| LLM provider | Hugging Face `AsyncInferenceClient` behind a small adapter | Async access to Hugging Face-hosted models and inference providers while keeping the orchestrator testable. |
+| Configuration | Environment variables | Keeps the first version dependency-light; secrets remain outside source control. |
 | Logging/metrics | Standard `logging` + OpenTelemetry | Structured operational signals without committing to a hosted vendor. |
 | Tests | `pytest` + `pytest-asyncio` | Direct async unit and API tests. |
 | Packaging/tooling | `uv` + Ruff | Fast, simple dependency management and formatting/linting. |
@@ -88,7 +88,7 @@ Core domain types:
 
 ## Delivery phases
 
-### Phase 1 — Runnable async core
+### Phase 1 - Runnable async core (implemented)
 
 - Create the Python project and development tooling.
 - Implement domain models, the agent protocol, deterministic demo agents, and
@@ -100,7 +100,7 @@ Core domain types:
 **Done when:** a CLI/demo can run several simulated agents concurrently and
 prints structured results with timing.
 
-### Phase 2 — Service boundary
+### Phase 2 - Service boundary (initial implementation complete)
 
 - Add `POST /runs` to submit a task and `GET /health`.
 - Validate inputs and expose clear error responses.
@@ -109,9 +109,9 @@ prints structured results with timing.
 **Done when:** the service is runnable locally and its OpenAPI page can drive
 a concurrent orchestration request.
 
-### Phase 3 — Real model integration
+### Phase 3 - Real model integration (Hugging Face adapter implemented)
 
-- Add the OpenAI adapter and a mock adapter selected by configuration.
+- Add the Hugging Face adapter and a mock adapter selected by configuration.
 - Define safe provider timeouts, retryable errors, and token/cost metadata.
 - Keep tests offline by using the mock adapter.
 
@@ -159,7 +159,17 @@ tests/
 - Introduce LangGraph or Temporal only when workflows need graphs, human
   approval, resumability, or durable execution beyond what `asyncio` provides.
 
+## Current implementation
+
+- `pyproject.toml` declares the FastAPI, Hugging Face, and test/tooling
+  dependencies for `uv`.
+- The service provides `/health` and `/runs`; the latter concurrently runs the
+  selected researcher, analyst, and reviewer agents.
+- `HuggingFaceReasoner` uses `huggingface_hub.AsyncInferenceClient` with a
+  model, routing provider, token, and timeout supplied by environment.
+- The default mock reasoner keeps the demo and tests deterministic and offline.
+
 ## Next implementation step
 
-Set up the Phase 1 Python package with deterministic agents and tests before
-adding an API or connecting a model provider.
+Run `uv sync` where PyPI is reachable, execute the test and Ruff commands,
+then set `LLM_PROVIDER=huggingface` and `HF_TOKEN` to exercise a hosted model.
